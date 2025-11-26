@@ -29,22 +29,23 @@ gitfill --goal 1500
 ## Usage
 
 ```bash
-# Target total commits (auto-detects platform from git remote)
+# Generate commits to reach your goal
 gitfill --goal 1772
 
-# Specify platform explicitly
+# Plan: see what your graph will look like before generating
+gitfill --plan --goal 1772
+
+# Audit: see fake vs real commit breakdown after push
+gitfill --audit
+
+# Specify platform
 gitfill --goal 2000 --platform gitlab
-gitfill --goal 1500 --platform gitea
 
-# Self-hosted instance
-gitfill --goal 1000 --platform gitlab --host gitlab.mycompany.com
-
-# Preview without creating commits
+# Dry run (no commits created)
 gitfill --goal 1772 --dry-run
-
-# Generate HTML visualization
-gitfill --preview
 ```
+
+Both `--plan` and `--audit` open a local server with an interactive graph.
 
 ## Options
 
@@ -59,7 +60,8 @@ gitfill --preview
 | `--max-per-day <n>`    | Maximum commits per day (default: 175)                 |
 | `--yes`, `-y`          | Skip confirmation                                      |
 | `--dry-run`            | Preview without creating commits                       |
-| `--preview`            | Generate HTML visualization                            |
+| `--plan`               | See what your graph will look like (requires `--goal`) |
+| `--audit`              | See fake vs real commit breakdown after push           |
 | `--help`, `-h`         | Show help                                              |
 | `--version`, `-v`      | Show version                                           |
 

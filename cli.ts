@@ -30,7 +30,7 @@ import { type Density, generateRealisticSchedule } from "./lib/schedule.ts";
 
 type Platform = "github" | "gitlab" | "gitea";
 
-const VERSION = "0.2.0";
+const VERSION = "0.3.0";
 
 const HELP = `
 gitfill v${VERSION}
@@ -50,7 +50,8 @@ OPTIONS:
   --max-per-day <n>      Maximum commits per day (default: 175)
   --yes, -y              Skip confirmation prompt
   --dry-run              Preview schedule without creating commits
-  --preview              Generate HTML visualization (starts local server)
+  --plan                 Preview the plan before push (requires --goal)
+  --audit                Audit after push (compares git log vs GitHub)
   --help, -h             Show this help message
   --version, -v          Show version number
 
@@ -71,7 +72,8 @@ interface ParsedArgs {
   maxPerDay: number;
   yes: boolean;
   dryRun: boolean;
-  preview: boolean;
+  plan: boolean;
+  audit: boolean;
   help: boolean;
   version: boolean;
 }
@@ -90,7 +92,8 @@ function parseArgs(): ParsedArgs {
     maxPerDay: 175,
     yes: false,
     dryRun: false,
-    preview: false,
+    plan: false,
+    audit: false,
     help: false,
     version: false,
   };
@@ -106,8 +109,10 @@ function parseArgs(): ParsedArgs {
       result.yes = true;
     } else if (arg === "--dry-run") {
       result.dryRun = true;
-    } else if (arg === "--preview") {
-      result.preview = true;
+    } else if (arg === "--plan") {
+      result.plan = true;
+    } else if (arg === "--audit") {
+      result.audit = true;
     } else if (arg === "--start") {
       result.start = args[++i];
     } else if (arg === "--end") {
@@ -234,13 +239,16 @@ async function generate(
   );
 }
 
-/** Generate preview visualization */
-async function preview(
+/** Generate plan visualization (before push) */
+async function plan(
   startDate: string,
+  endDate: string,
   username: string,
   platform: Platform,
   host: string,
   density: Density,
+  goal: number,
+  maxPerDay: number,
 ): Promise<void> {
   console.log("Generating visualization...\n");
 
@@ -250,11 +258,7 @@ async function preview(
   const vizEndDate = `${year}-12-31`;
   console.log(`Visualization: ${vizStartDate} to ${vizEndDate}`);
 
-  console.log("\nReading commits from git log...");
-  const fakeCommits = await getLocalCommitDates();
-  console.log(`Found ${Object.keys(fakeCommits).length} days with commits`);
-
-  // Fetch contributions from platform
+  // Fetch contributions from platform first
   let realCommits: Record<string, number> = {};
   let hasPlatformAccess = false;
 
@@ -287,14 +291,36 @@ async function preview(
     hasPlatformAccess = true;
   } catch {
     console.log(`\nNote: Could not fetch ${platform} contributions (offline?)`);
-    console.log("Showing fake commits only.");
+    console.log("Will simulate schedule without real commit data.");
   }
 
-  const totalFake = Object.values(fakeCommits).reduce(
+  // Calculate fake commits needed and generate schedule
+  const totalReal = Object.values(realCommits).reduce(
     (sum, count) => sum + count,
     0,
   );
-  const totalReal = Object.values(realCommits).reduce(
+  const fakeNeeded = Math.max(0, goal - totalReal);
+
+  console.log(`\nGoal: ${goal} total commits`);
+  console.log(`Real commits: ${totalReal}`);
+  console.log(`Fake commits to simulate: ${fakeNeeded}`);
+
+  // Generate simulated schedule (same algorithm as actual generation)
+  const { schedule } = generateRealisticSchedule(
+    new Date(startDate),
+    new Date(endDate),
+    fakeNeeded,
+    maxPerDay,
+    density,
+  );
+
+  // Convert schedule Map to Record<string, number>
+  const fakeCommits: Record<string, number> = {};
+  for (const [date, count] of schedule) {
+    fakeCommits[date] = count;
+  }
+
+  const totalFake = Object.values(fakeCommits).reduce(
     (sum, count) => sum + count,
     0,
   );
@@ -336,6 +362,130 @@ async function preview(
     hostname: "127.0.0.1",
     onListen({ port, hostname }) {
       console.log(`\nPreview: http://${hostname}:${port}/`);
+      console.log("Press Ctrl+C to stop the server");
+    },
+  }, (req) => serveFile(req, outputPath));
+
+  await server.finished;
+}
+
+/** Audit visualization (after push) - compares local git log vs GitHub */
+async function audit(
+  startDate: string,
+  _endDate: string,
+  username: string,
+  platform: Platform,
+  host: string,
+  density: Density,
+): Promise<void> {
+  console.log("Running audit...\n");
+
+  // Parse year for visualization
+  const year = new Date(startDate).getFullYear();
+  const vizStartDate = `${year}-01-01`;
+  const vizEndDate = `${year}-12-31`;
+  console.log(`Visualization: ${vizStartDate} to ${vizEndDate}`);
+
+  // Read local git log = commits in THIS repo ("fake" commits from gitfill)
+  console.log("\nReading commits from local git log...");
+  const localCommits = await getLocalCommitDates();
+  const localTotal = Object.values(localCommits).reduce(
+    (sum, count) => sum + count,
+    0,
+  );
+  console.log(`Found ${localTotal} commits in this repo`);
+
+  // Fetch GitHub contributions = total across all repos
+  let githubCommits: Record<string, number> = {};
+  let hasPlatformAccess = false;
+
+  try {
+    console.log(`\nFetching contributions from ${platform}...`);
+    if (platform === "github") {
+      githubCommits = await getGitHubContributions(
+        username,
+        vizStartDate,
+        vizEndDate,
+      );
+    } else if (platform === "gitlab") {
+      githubCommits = await getGitLabContributions(
+        username,
+        vizStartDate,
+        vizEndDate,
+        host,
+      );
+    } else if (platform === "gitea") {
+      githubCommits = await getGiteaContributions(
+        username,
+        vizStartDate,
+        vizEndDate,
+        host,
+      );
+    }
+    const githubTotal = Object.values(githubCommits).reduce(
+      (sum, count) => sum + count,
+      0,
+    );
+    console.log(`Found ${githubTotal} total contributions on ${platform}`);
+    hasPlatformAccess = true;
+  } catch {
+    console.log(`\nNote: Could not fetch ${platform} contributions (offline?)`);
+    console.log("Showing local commits only.");
+  }
+
+  // Calculate real = GitHub - local (other activity)
+  const realCommits: Record<string, number> = {};
+  for (const [date, count] of Object.entries(githubCommits)) {
+    const localCount = localCommits[date] || 0;
+    const realCount = count - localCount;
+    if (realCount > 0) {
+      realCommits[date] = realCount;
+    }
+  }
+
+  const totalFake = localTotal;
+  const totalReal = Object.values(realCommits).reduce(
+    (sum, count) => sum + count,
+    0,
+  );
+  const peakDays = Object.values(localCommits).filter((c) => c > 30).length;
+
+  const data = {
+    fake: localCommits,
+    real: realCommits,
+    startDate: vizStartDate,
+    endDate: vizEndDate,
+    density,
+    stats: {
+      totalFake,
+      totalReal,
+      fakeDays: Object.keys(localCommits).length,
+      realDays: Object.keys(realCommits).length,
+      peakDays,
+    },
+  };
+
+  console.log("\nAudit results:");
+  console.log(`  This repo (fake): ${totalFake} commits`);
+  if (hasPlatformAccess) {
+    console.log(`  Other activity (real): ${totalReal} commits`);
+  }
+  console.log(`  Peak days: ${peakDays}`);
+
+  const html = generateHTML(data);
+  await ensureDir("./output");
+  const outputPath = "./output/index.html";
+  await Deno.writeTextFile(outputPath, html);
+  console.log(`\nGenerated: ${outputPath}`);
+
+  // Start HTTP server
+  console.log("\nStarting audit server...");
+
+  const server = Deno.serve({
+    port: 0,
+    hostname: "127.0.0.1",
+    onListen({ port, hostname }) {
+      console.log(`\nAudit: http://${hostname}:${port}/`);
       console.log("Press Ctrl+C to stop the server");
     },
   }, (req) => serveFile(req, outputPath));
@@ -478,18 +628,41 @@ async function main(): Promise<void> {
     Deno.exit(1);
   }
 
-  // Handle preview mode (doesn't require --goal)
-  if (args.preview) {
-    await preview(startDateStr, username, platform, host, args.density);
+  // Handle --audit mode (after push) - doesn't require --goal
+  if (args.audit) {
+    await audit(
+      startDateStr,
+      endDateStr,
+      username,
+      platform,
+      host,
+      args.density,
+    );
     return;
   }
 
-  // Require --goal for non-preview mode
+  // Require --goal for other modes
   if (args.goal === null) {
     console.error("Error: --goal is required.\n");
     console.error("Usage: gitfill --goal <total>");
+    console.error("       gitfill --plan --goal <total>");
     console.error("Example: gitfill --goal 1772");
     Deno.exit(1);
+  }
+
+  // Handle --plan mode (before push)
+  if (args.plan) {
+    await plan(
+      startDateStr,
+      endDateStr,
+      username,
+      platform,
+      host,
+      args.density,
+      args.goal,
+      args.maxPerDay,
+    );
+    return;
   }
 
   // Fetch real commits from platform
