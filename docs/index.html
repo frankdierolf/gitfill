@@ -13,6 +13,10 @@
       href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap"
       rel="stylesheet"
     >
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23ffa550'/></svg>"
+    >
     <style>
       :root {
         --bg: #000000;
@@ -408,21 +412,20 @@
       <!-- Quick Start -->
       <section>
         <h2 class="section-title">Quick Start</h2>
+        <!-- deno-fmt-ignore -->
         <div class="code-block">
           <span class="code-label">One-liner</span>
           <code><span class="comment"># Create a new repo and run</span>
-            <span class="command"
-            >mkdir my-commits && cd my-commits && git init</span>
-            <span class="command"
-            >deno run jsr:@gitfill/gitfill --goal 1500</span></code>
+<span class="command">mkdir my-commits && cd my-commits && git init</span>
+<span class="command">deno run jsr:@gitfill/gitfill --goal 1500</span></code>
         </div>
+        <!-- deno-fmt-ignore -->
         <div class="code-block">
-          <span class="code-label">Global install</span>
-          <code><span class="comment"
-            ># Install globally, then use anywhere</span>
-            <span class="command"
-            >deno install -g -n gitfill jsr:@gitfill/gitfill</span>
-            <span class="command">gitfill --goal 1500</span></code>
+          <span class="code-label">Visualize</span>
+          <code><span class="comment"># See what your graph will look like</span>
+<span class="command">gitfill --plan --goal 1500</span>
+<span class="comment"># After pushing, see fake vs real breakdown</span>
+<span class="command">gitfill --audit</span></code>
         </div>
       </section>
 
@@ -451,10 +454,10 @@
             </p>
           </div>
           <div class="feature">
-            <h3 class="feature-title">Preview mode</h3>
+            <h3 class="feature-title">Plan & Audit</h3>
             <p class="feature-desc">
-              Generate HTML visualization before committing. Use --dry-run to
-              see the plan without creating commits.
+              Preview your graph before generating with --plan. After pushing,
+              see fake vs real breakdown with --audit.
             </p>
           </div>
         </div>
