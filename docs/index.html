@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>gitfill - Fill your contribution graph</title>
+    <meta name="description" content="Generate fake commits to fill your GitHub, GitLab, or Gitea contribution graph. The work happened. The green squares didn't.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #000000;
+            --text: #ffffff;
+            --border: #ffffff;
+            --shadow: #ffffff;
+            --muted: #777777;
+            --accent: #ffa550;
+            --accent-dim: rgba(255, 165, 80, 0.15);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: 'JetBrains Mono', monospace;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 0 24px;
+        }
+
+        /* Hero */
+        .hero {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 80px 0;
+        }
+
+        .hero-title {
+            font-size: clamp(48px, 12vw, 96px);
+            font-weight: 700;
+            letter-spacing: -2px;
+            line-height: 1;
+            margin-bottom: 16px;
+        }
+
+        .hero-tagline {
+            font-size: clamp(18px, 4vw, 24px);
+            color: var(--muted);
+            margin-bottom: 48px;
+        }
+
+        /* Contribution Grid */
+        .grid-container {
+            margin-bottom: 48px;
+            overflow: hidden;
+        }
+
+        .contribution-grid {
+            display: flex;
+            gap: 3px;
+            padding: 24px;
+            border: 1px solid var(--border);
+            box-shadow: 3px 3px 0 var(--shadow);
+            overflow-x: auto;
+        }
+
+        .week {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+
+        .day {
+            width: 12px;
+            height: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: var(--bg);
+            opacity: 0;
+            transform: scale(0);
+            transition: all 0.2s ease;
+        }
+
+        .day.filled {
+            background: var(--accent);
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        .day.filled.dim {
+            background: var(--accent-dim);
+        }
+
+        .day.filled.medium {
+            background: rgba(255, 165, 80, 0.4);
+        }
+
+        .day.filled.bright {
+            background: rgba(255, 165, 80, 0.7);
+        }
+
+        .day.filled.peak {
+            background: var(--accent);
+        }
+
+        /* Install Command */
+        .install-box {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            box-shadow: 2px 2px 0 var(--shadow);
+            padding: 16px 20px;
+            font-size: 14px;
+            max-width: 500px;
+        }
+
+        .install-box code {
+            flex: 1;
+            color: var(--muted);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .install-box code span {
+            color: var(--text);
+        }
+
+        .copy-btn {
+            background: none;
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 6px 12px;
+            font-family: inherit;
+            font-size: 11px;
+            cursor: pointer;
+            transition: all 0.15s;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .copy-btn:hover {
+            background: var(--text);
+            color: var(--bg);
+        }
+
+        .copy-btn.copied {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: var(--bg);
+        }
+
+        /* Sections */
+        section {
+            padding: 100px 0;
+        }
+
+        .section-title {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--muted);
+            margin-bottom: 32px;
+        }
+
+        /* Why Section */
+        .why-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+        }
+
+        .why-card {
+            border: 1px solid var(--border);
+            box-shadow: 2px 2px 0 var(--shadow);
+            padding: 24px;
+            transition: transform 0.15s, box-shadow 0.15s;
+        }
+
+        .why-card:hover {
+            transform: translate(-2px, -2px);
+            box-shadow: 4px 4px 0 var(--shadow);
+        }
+
+        .why-card p {
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .why-card.highlight {
+            background: var(--accent-dim);
+            border-color: var(--accent);
+            box-shadow: 2px 2px 0 var(--accent);
+        }
+
+        .why-card.highlight:hover {
+            box-shadow: 4px 4px 0 var(--accent);
+        }
+
+        .why-card.highlight p {
+            color: var(--accent);
+            font-weight: 500;
+        }
+
+        /* Quick Start */
+        .code-block {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            box-shadow: 2px 2px 0 var(--shadow);
+            padding: 20px 24px;
+            margin-bottom: 16px;
+            overflow-x: auto;
+            position: relative;
+        }
+
+        .code-block code {
+            font-size: 13px;
+            line-height: 1.8;
+            display: block;
+            white-space: pre-wrap;
+        }
+
+        .code-block .comment {
+            color: var(--muted);
+        }
+
+        .code-block .command {
+            color: var(--text);
+        }
+
+        .code-label {
+            position: absolute;
+            top: 8px;
+            right: 12px;
+            font-size: 10px;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* Features */
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 24px;
+        }
+
+        .feature {
+            padding: 24px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .feature-title {
+            font-size: 14px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .feature-desc {
+            font-size: 13px;
+            color: var(--muted);
+            line-height: 1.5;
+        }
+
+        /* Footer */
+        footer {
+            padding: 48px 0;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+            color: var(--muted);
+        }
+
+        footer a {
+            color: var(--text);
+            text-decoration: none;
+            border-bottom: 1px solid var(--border);
+            transition: border-color 0.15s;
+        }
+
+        footer a:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 32px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: var(--text);
+            color: var(--bg);
+            padding: 12px 24px;
+            font-size: 13px;
+            font-weight: 500;
+            border: 1px solid var(--border);
+            box-shadow: 3px 3px 0 var(--accent);
+            opacity: 0;
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+
+        .toast.visible {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+        }
+
+        /* Responsive */
+        @media (max-width: 640px) {
+            .hero {
+                padding: 60px 0;
+                min-height: auto;
+            }
+
+            .why-grid,
+            .features-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .install-box {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 16px;
+            }
+
+            .install-box code {
+                text-align: center;
+            }
+
+            footer {
+                flex-direction: column;
+                gap: 16px;
+                text-align: center;
+            }
+
+            section {
+                padding: 60px 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Hero -->
+        <section class="hero">
+            <h1 class="hero-title">GITFILL</h1>
+            <p class="hero-tagline">Fill your contribution graph</p>
+
+            <div class="grid-container">
+                <div class="contribution-grid" id="grid"></div>
+            </div>
+
+            <div class="install-box">
+                <code>$ <span>deno run jsr:@gitfill/gitfill --goal 1500</span></code>
+                <button class="copy-btn" onclick="copyCommand(this)">Copy</button>
+            </div>
+        </section>
+
+        <!-- Why -->
+        <section>
+            <h2 class="section-title">Why</h2>
+            <div class="why-grid">
+                <div class="why-card">
+                    <p>Lost access to an old account</p>
+                </div>
+                <div class="why-card">
+                    <p>Years of commits on GitLab, Bitbucket, or self-hosted instances</p>
+                </div>
+                <div class="why-card">
+                    <p>Client work on private enterprise repos</p>
+                </div>
+                <div class="why-card highlight">
+                    <p>The work happened. The green squares didn't.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Quick Start -->
+        <section>
+            <h2 class="section-title">Quick Start</h2>
+            <div class="code-block">
+                <span class="code-label">One-liner</span>
+                <code><span class="comment"># Create a new repo and run</span>
+<span class="command">mkdir my-commits && cd my-commits && git init</span>
+<span class="command">deno run jsr:@gitfill/gitfill --goal 1500</span></code>
+            </div>
+            <div class="code-block">
+                <span class="code-label">Global install</span>
+                <code><span class="comment"># Install globally, then use anywhere</span>
+<span class="command">deno install -g -n gitfill jsr:@gitfill/gitfill</span>
+<span class="command">gitfill --goal 1500</span></code>
+            </div>
+        </section>
+
+        <!-- Features -->
+        <section>
+            <h2 class="section-title">Features</h2>
+            <div class="features-grid">
+                <div class="feature">
+                    <h3 class="feature-title">Multi-platform</h3>
+                    <p class="feature-desc">Works with GitHub, GitLab, and Gitea. Auto-detects from git remote or specify manually.</p>
+                </div>
+                <div class="feature">
+                    <h3 class="feature-title">Realistic distribution</h3>
+                    <p class="feature-desc">Uses Zipf's Law to create natural patterns. Few peaks, many small days, just like real activity.</p>
+                </div>
+                <div class="feature">
+                    <h3 class="feature-title">Self-hosted support</h3>
+                    <p class="feature-desc">Point to your own GitLab or Gitea instance with --host flag.</p>
+                </div>
+                <div class="feature">
+                    <h3 class="feature-title">Preview mode</h3>
+                    <p class="feature-desc">Generate HTML visualization before committing. Use --dry-run to see the plan without creating commits.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer>
+            <span>MIT License</span>
+            <a href="https://github.com/frankdierolf/gitfill" target="_blank" rel="noopener">github.com/frankdierolf/gitfill</a>
+        </footer>
+    </div>
+
+    <div class="toast" id="toast">Copied to clipboard</div>
+
+    <script>
+        // Build contribution grid
+        function buildGrid() {
+            const grid = document.getElementById('grid');
+            const weeks = 52;
+            const days = 7;
+            const cells = [];
+
+            for (let w = 0; w < weeks; w++) {
+                const week = document.createElement('div');
+                week.className = 'week';
+
+                for (let d = 0; d < days; d++) {
+                    const day = document.createElement('div');
+                    day.className = 'day';
+                    week.appendChild(day);
+                    cells.push(day);
+                }
+
+                grid.appendChild(week);
+            }
+
+            return cells;
+        }
+
+        // Animate grid filling (Zipf-like pattern)
+        function animateGrid(cells) {
+            // Generate ~40% active days with varying intensities
+            const activeDays = [];
+            const activeCount = Math.floor(cells.length * 0.4);
+
+            // Pick random indices
+            const indices = [...Array(cells.length).keys()];
+            for (let i = indices.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [indices[i], indices[j]] = [indices[j], indices[i]];
+            }
+
+            // Assign intensities using power law
+            const selected = indices.slice(0, activeCount);
+            selected.sort(() => Math.random() - 0.5);
+
+            selected.forEach((idx, rank) => {
+                const intensity = rank < 5 ? 'peak' :
+                                  rank < 15 ? 'bright' :
+                                  rank < 40 ? 'medium' : 'dim';
+                activeDays.push({ idx, intensity });
+            });
+
+            // Sort by index for wave effect
+            activeDays.sort((a, b) => a.idx - b.idx);
+
+            // Animate
+            activeDays.forEach((day, i) => {
+                setTimeout(() => {
+                    cells[day.idx].classList.add('filled', day.intensity);
+                }, i * 8);
+            });
+        }
+
+        // Copy command
+        function copyCommand(btn) {
+            const text = 'deno run jsr:@gitfill/gitfill --goal 1500';
+
+            // Try modern clipboard API first, fallback for non-HTTPS
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text).then(showToast);
+            } else {
+                // Fallback for HTTP
+                const textarea = document.createElement('textarea');
+                textarea.value = text;
+                textarea.style.position = 'fixed';
+                textarea.style.opacity = '0';
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textarea);
+                showToast();
+            }
+        }
+
+        // Show toast
+        function showToast() {
+            const toast = document.getElementById('toast');
+            toast.classList.add('visible');
+            setTimeout(() => {
+                toast.classList.remove('visible');
+            }, 2000);
+        }
+
+        // Init
+        const cells = buildGrid();
+        setTimeout(() => animateGrid(cells), 500);
+    </script>
+</body>
+</html>

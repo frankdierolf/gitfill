@@ -1,0 +1,21 @@
+{
+  "name": "@gitfill/gitfill",
+  "version": "0.2.0",
+  "description": "Generate fake commits to fill your GitHub, GitLab, or Gitea contribution graph",
+  "license": "MIT",
+  "exports": {
+    ".": "./cli.ts"
+  },
+  "publish": {
+    "include": ["lib/", "cli.ts", "scripts/", "README.md", "LICENSE"]
+  },
+  "imports": {
+    "@std/datetime": "jsr:@std/datetime@^0.225.0",
+    "@std/fs": "jsr:@std/fs@^1.0.0",
+    "@std/http": "jsr:@std/http@^1.0.0"
+  },
+  "tasks": {
+    "fill": "deno run --allow-run=git --allow-read=. --allow-write=. --allow-env --allow-net cli.ts",
+    "preview": "deno run --allow-run=git --allow-read=. --allow-write=. --allow-env --allow-net cli.ts --preview"
+  }
+}
