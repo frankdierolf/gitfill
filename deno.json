@@ -1,6 +1,6 @@
 {
   "name": "@gitfill/gitfill",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Generate fake commits to fill your GitHub, GitLab, or Gitea contribution graph",
   "license": "MIT",
   "runtimes": ["deno"],
